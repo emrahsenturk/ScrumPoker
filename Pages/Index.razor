@@ -1,0 +1,102 @@
+﻿@page "/"
+
+<PageTitle>Scrum Poker - Ana Sayfa</PageTitle>
+
+<div class="container">
+    <h1>Scrum Poker'a Hoş Geldiniz!</h1>
+
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <h3>Scrum Poker Nedir?</h3>
+            <p>
+                Scrum Poker (veya Planning Poker), çevik yazılım geliştirme süreçlerinde kullanılan bir tahminleme tekniğidir.
+                Takım üyeleri, her bir görev için zorluk derecesini belirlemek üzere kartlar kullanarak oy verirler.
+            </p>
+
+            <h3 class="mt-4">Nasıl Kullanılır?</h3>
+            <ol>
+                <li>Menüden "Scrum Poker" sayfasına gidin.</li>
+                <li>Adınızı yazın, bir oda oluşturun ya da oda ID'sini yazın ve bir odaya katılın.</li>
+                <li>Fibonacci dizisinden uygun gördüğünüz kartı seçin.</li>
+                <li>Tüm oylar verildikten sonra "Oyları Göster" butonuna tıklayın.</li>
+                <li>Yeni bir oylama için "Sıfırla" butonunu kullanın.</li>
+            </ol>
+        </div>
+
+        <div class="col-md-4">
+            <div class="start-card">
+                <div class="card-icon">
+                    <i class="fas fa-play-circle"></i>
+                </div>
+                <h3>Hemen Başlayın</h3>
+                <p>Takımınızla birlikte Scrum Poker oynamaya başlamak için hemen tıklayın!</p>
+                <a href="planning-poker" class="start-button">
+                    <span>Scrum Poker'a Git</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .start-card {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: 0 10px 20px rgba(79, 70, 229, 0.2);
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+
+    .start-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .card-icon {
+        font-size: 3rem;
+        margin-bottom: 1.5rem;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .start-card h3 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .start-card p {
+        font-size: 1rem;
+        opacity: 0.9;
+        margin-bottom: 1.5rem;
+    }
+
+    .start-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        background-color: white;
+        color: #4f46e5;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .start-button:hover {
+        background-color: #f8fafc;
+        color: #4338ca;
+        transform: translateX(5px);
+    }
+
+    .start-button i {
+        transition: transform 0.3s ease;
+    }
+
+    .start-button:hover i {
+        transform: translateX(3px);
+    }
+</style>

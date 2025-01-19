@@ -1,0 +1,311 @@
+@page "/planning-poker"
+@using Microsoft.AspNetCore.SignalR.Client
+@using ScrumPoker.Models
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<div class="container">
+    <div class="join-form">
+        <h2 class="text-center mb-4">Scrum Poker</h2>
+        
+        <div class="form-floating mb-3">
+            <input type="text" 
+                   class="form-control" 
+                   id="userName" 
+                   placeholder="İsminiz"
+                   @bind="_userName" 
+                   @onkeypress="HandleKeyPress" />
+            <label for="userName">İsminiz</label>
+        </div>
+
+        @if (_showRoomIdInput)
+        {
+            <div class="form-floating mb-3">
+                <input type="text" 
+                       class="form-control" 
+                       id="roomId" 
+                       placeholder="Oda ID"
+                       @bind="_roomId" 
+                       @onkeypress="HandleKeyPress" />
+                <label for="roomId">Oda ID</label>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-danger">
+                @_errorMessage
+            </div>
+        }
+
+        <div class="d-grid gap-2">
+            @if (!_showRoomIdInput)
+            {
+                <button class="btn btn-primary btn-lg" 
+                        @onclick="CreateRoom" 
+                        disabled="@string.IsNullOrWhiteSpace(_userName)">
+                    <i class="fas fa-plus-circle"></i> Yeni Oda Oluştur
+                </button>
+                <button class="btn btn-outline-primary btn-lg" 
+                        @onclick="ShowJoinRoom">
+                    <i class="fas fa-sign-in-alt"></i> Odaya Katıl
+                </button>
+            }
+            else
+            {
+                <button class="btn btn-primary btn-lg" 
+                        @onclick="JoinRoom" 
+                        disabled="@(string.IsNullOrWhiteSpace(_userName) || string.IsNullOrWhiteSpace(_roomId))">
+                    <i class="fas fa-sign-in-alt"></i> Katıl
+                </button>
+                <button class="btn btn-outline-secondary btn-lg" 
+                        @onclick="HideJoinRoom">
+                    <i class="fas fa-arrow-left"></i> Geri
+                </button>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .container {
+        min-height: 100vh;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        background-color: #f8f9fa;
+    }
+
+    .join-form {
+        background: white;
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        width: 100%;
+        max-width: 400px;
+        margin-top: 5rem;
+    }
+
+    .form-floating {
+        position: relative;
+    }
+
+    .form-floating > .form-control {
+        height: calc(3.5rem + 2px);
+        padding: 1rem 0.75rem;
+    }
+
+    .form-floating > label {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        padding: 1rem 0.75rem;
+        pointer-events: none;
+        border: 1px solid transparent;
+        transform-origin: 0 0;
+        transition: opacity .1s ease-in-out,transform .1s ease-in-out;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        text-transform: none;
+        transition: all 0.2s;
+    }
+
+    .btn-lg {
+        padding: 1rem 1.5rem;
+        font-size: 1.1rem;
+    }
+
+    .btn i {
+        margin-right: 0.5rem;
+    }
+
+    .btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .btn:active {
+        transform: translateY(1px);
+    }
+
+    h2 {
+        color: #2c3e50;
+        font-weight: 600;
+    }
+
+    .alert {
+        margin-bottom: 1rem;
+        border-radius: 0.5rem;
+    }
+</style>
+
+@code {
+    private string _userName = "";
+    private string _roomId = "";
+    private string _errorMessage = "";
+    private bool _showRoomIdInput = false;
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try 
+        {
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/planningpokerhub").ToString().Replace("localhost:8080", "localhost:80"))
+                .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(15) })
+                .ConfigureLogging(logging => 
+                {
+                    logging.SetMinimumLevel(LogLevel.Debug);
+                })
+                .Build();
+
+            _hubConnection.ServerTimeout = TimeSpan.FromMinutes(30);
+            _hubConnection.HandshakeTimeout = TimeSpan.FromMinutes(5);
+            _hubConnection.KeepAliveInterval = TimeSpan.FromMinutes(15);
+
+            _hubConnection.Closed += async (error) =>
+            {
+                if (error != null)
+                {
+                    Console.WriteLine($"SignalR Bağlantısı Kapandı: {error.Message}");
+                    _errorMessage = $"Bağlantı kesildi: {error.Message}";
+                    StateHasChanged();
+                }
+                await Task.Delay(new Random().Next(0, 5) * 1000);
+                await ConnectWithRetryAsync();
+            };
+
+            await ConnectWithRetryAsync();
+            Console.WriteLine("SignalR bağlantı URL'si: " + NavigationManager.ToAbsoluteUri("/planningpokerhub").ToString().Replace("localhost:8080", "localhost:80"));
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Bağlantı hatası: {ex.Message}";
+            Console.WriteLine($"SignalR Bağlantı Hatası: {ex.Message}");
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConnectWithRetryAsync(int retryCount = 5)
+    {
+        while (retryCount > 0)
+        {
+            try
+            {
+                await _hubConnection!.StartAsync();
+                Console.WriteLine("SignalR Bağlantısı Başarılı!");
+                return;
+            }
+            catch (Exception ex)
+            {
+                retryCount--;
+                Console.WriteLine($"SignalR Bağlantı Denemesi Başarısız: {ex.Message}");
+                if (retryCount > 0)
+                {
+                    await Task.Delay(2000);
+                }
+                else
+                {
+                    _errorMessage = $"Bağlantı kurulamadı: {ex.Message}";
+                    throw;
+                }
+            }
+        }
+    }
+
+    private void ShowJoinRoom()
+    {
+        _showRoomIdInput = true;
+        _errorMessage = "";
+    }
+
+    private void HideJoinRoom()
+    {
+        _showRoomIdInput = false;
+        _roomId = "";
+        _errorMessage = "";
+    }
+
+    private async Task CreateRoom()
+    {
+        if (string.IsNullOrWhiteSpace(_userName))
+        {
+            _errorMessage = "Lütfen isminizi girin.";
+            return;
+        }
+
+        try
+        {
+            var result = await _hubConnection!.InvokeAsync<CreateRoomResult>("CreateRoom", _userName);
+            if (result.Success && result.RoomId != null)
+            {
+                NavigationManager.NavigateTo($"/poker-room/{_userName}/{result.RoomId}");
+            }
+            else
+            {
+                _errorMessage = result.ErrorMessage ?? "Oda oluşturulurken bir hata oluştu.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Bağlantı hatası: {ex.Message}";
+        }
+    }
+
+    private async Task JoinRoom()
+    {
+        if (string.IsNullOrWhiteSpace(_userName))
+        {
+            _errorMessage = "Lütfen isminizi girin.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_roomId))
+        {
+            _errorMessage = "Lütfen oda ID'sini girin.";
+            return;
+        }
+
+        try
+        {
+            var checkResult = await _hubConnection!.InvokeAsync<RoomJoinResult>("CheckRoom", _roomId);
+            if (!checkResult.RoomExists)
+            {
+                _errorMessage = "Oda bulunamadı.";
+                return;
+            }
+
+            NavigationManager.NavigateTo($"/poker-room/{_userName}/{_roomId}");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Bağlantı hatası: {ex.Message}";
+        }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            if (_showRoomIdInput)
+            {
+                await JoinRoom();
+            }
+            else
+            {
+                await CreateRoom();
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+} 
